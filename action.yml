@@ -1,0 +1,36 @@
+name: drizzle-migration-guard
+description: Explain Drizzle migration collisions in pull requests.
+author: saudademjj
+branding:
+  icon: shield
+  color: blue
+inputs:
+  config:
+    description: Comma or newline separated drizzle config paths. Defaults to drizzle.config.ts in the working directory.
+    required: false
+  working-directory:
+    description: Directory where drizzle-kit should run. Defaults to the GitHub workspace root.
+    required: false
+    default: .
+  fail-on:
+    description: Blocking mode. Use collision, all, or none.
+    required: false
+    default: collision
+  comment-mode:
+    description: PR comment behavior. Use sticky or off.
+    required: false
+    default: sticky
+  github-token:
+    description: GitHub token used to read PR files and manage sticky comments.
+    required: false
+outputs:
+  status:
+    description: success, failure, or skipped
+  summary:
+    description: One-line result summary
+  report-path:
+    description: Absolute path to the generated markdown report
+runs:
+  using: node20
+  main: dist/index.js
+

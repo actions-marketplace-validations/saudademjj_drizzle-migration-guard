@@ -1,0 +1,44 @@
+{
+  "name": "drizzle-migration-guard",
+  "version": "0.1.0",
+  "description": "A GitHub Action that explains Drizzle migration collisions in pull requests.",
+  "private": false,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs --target node20 --platform node --sourcemap --clean --out-dir dist",
+    "package": "npm run build",
+    "test": "tsx --test tests/**/*.test.ts",
+    "ci": "npm run build && npm test"
+  },
+  "keywords": [
+    "drizzle",
+    "drizzle-kit",
+    "github-action",
+    "migrations",
+    "pull-request"
+  ],
+  "author": "saudademjj",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saudademjj/drizzle-migration-guard.git"
+  },
+  "homepage": "https://github.com/saudademjj/drizzle-migration-guard#readme",
+  "bugs": {
+    "url": "https://github.com/saudademjj/drizzle-migration-guard/issues"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/exec": "^1.1.1",
+    "@actions/github": "^6.0.1",
+    "minimatch": "^10.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "drizzle-kit": "0.31.8",
+    "drizzle-orm": "0.44.7",
+    "tsup": "^8.3.5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3"
+  }
+}
