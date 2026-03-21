@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs --target node20 --platform node --sourcemap --clean --out-dir dist",
     "package": "npm run build",
-    "test": "tsx --test tests/**/*.test.ts",
+    "test": "node scripts/run-tests.mjs",
     "ci": "npm run build && npm test"
   },
   "keywords": [
