@@ -41,7 +41,7 @@ If the issue depends on a specific GitHub Actions event or permission setup, inc
 
 The maintainer will try to:
 
-- acknowledge receipt within a reasonable time
+- acknowledge receipt within 7 days
 - validate whether the report is reproducible
 - assess severity and affected scope
 - coordinate a fix when the report is confirmed

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/logo.svg" alt="drizzle-migration-guard logo" width="96" height="96" />
+  <img src="https://raw.githubusercontent.com/saudademjj/drizzle-migration-guard/main/docs/logo.svg" alt="drizzle-migration-guard logo" width="96" height="96" />
 </p>
 
 <h1 align="center">drizzle-migration-guard</h1>
@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <img src="./docs/hero.svg" alt="drizzle-migration-guard hero" width="1100" />
+  <img src="https://raw.githubusercontent.com/saudademjj/drizzle-migration-guard/main/docs/hero.svg" alt="drizzle-migration-guard hero" width="1100" />
 </p>
 
 <p align="center">
@@ -177,7 +177,7 @@ npm run build
 npm test
 ```
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution workflow, validation expectations, and PR guidance, and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution workflow, validation expectations, and PR guidance, [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards, and [SECURITY.md](./SECURITY.md) for vulnerability reporting guidance.
 For support paths and maintainer expectations, see [SUPPORT.md](./SUPPORT.md) and [MAINTAINERS.md](./MAINTAINERS.md).
 
 ## License

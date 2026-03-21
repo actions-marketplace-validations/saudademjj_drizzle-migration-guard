@@ -48,6 +48,8 @@ If you experience or witness unacceptable behavior, please contact the project m
 
 - <https://github.com/saudademjj>
 
+There is no dedicated conduct-reporting email address published for this repository at this time. Until one is added, please use the private GitHub contact path above and request a non-public follow-up channel if needed.
+
 If you do not want to post sensitive details publicly, open a minimal issue that only asks for a private contact channel and avoid including incident details in the issue body.
 
 All reports will be reviewed and investigated promptly and fairly. The maintainer will respect the privacy and security of the reporter to the extent reasonably possible.

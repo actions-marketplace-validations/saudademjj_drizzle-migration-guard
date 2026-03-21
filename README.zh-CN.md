@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/logo.svg" alt="drizzle-migration-guard logo" width="96" height="96" />
+  <img src="https://raw.githubusercontent.com/saudademjj/drizzle-migration-guard/main/docs/logo.svg" alt="drizzle-migration-guard logo" width="96" height="96" />
 </p>
 
 <h1 align="center">drizzle-migration-guard</h1>
@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img src="./docs/hero.svg" alt="drizzle-migration-guard hero" width="1100" />
+  <img src="https://raw.githubusercontent.com/saudademjj/drizzle-migration-guard/main/docs/hero.svg" alt="drizzle-migration-guard hero" width="1100" />
 </p>
 
 `drizzle-migration-guard` 不是替代 Drizzle，而是把 `drizzle-kit check` 包装成更适合团队协作和代码评审的反馈层。
