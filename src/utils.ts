@@ -3,7 +3,7 @@ import path from "node:path";
 import { minimatch } from "minimatch";
 
 export function toPosixPath(value: string): string {
-  return value.split(path.sep).join("/");
+  return value.replace(/\\/g, "/");
 }
 
 export function workspaceRelative(absolutePath: string, workspaceRoot: string): string {
@@ -40,8 +40,9 @@ export function normalizeFileList(files: string[]): string[] {
     files
       .map((file) => file.trim())
       .filter(Boolean)
-      .map((file) => file.replace(/^\/+/, ""))
-      .map((file) => file.replace(/\\/g, "/")),
+      .map((file) => file.replace(/\\/g, "/"))
+      .map((file) => file.replace(/\/{2,}/g, "/"))
+      .map((file) => file.replace(/^\/+/, "")),
   );
 }
 
@@ -69,4 +70,3 @@ export function shorten(value: string, maxLength = 240): string {
 export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
   return count === 1 ? singular : plural;
 }
-

@@ -11,16 +11,19 @@ export interface GuardInputs {
   failOn: FailOnMode;
   commentMode: CommentMode;
   githubToken: string;
+  timeoutSeconds: number;
 }
 
 export interface ConfigTarget {
   configPath: string;
   configPathRelative: string;
   configDirectory: string;
+  configDirectoryRelative: string;
   migrationDirectory: string;
   migrationDirectoryRelative: string;
   schemaPatterns: string[];
   relevantPatterns: string[];
+  needsDynamicResolution: boolean;
 }
 
 export interface CheckExecution {
@@ -29,6 +32,8 @@ export interface CheckExecution {
   stdout: string;
   stderr: string;
   command: string;
+  timedOut?: boolean;
+  timeoutMs?: number;
 }
 
 export interface ParsedCheck {
@@ -59,4 +64,3 @@ export interface ActionReport {
   markdown: string;
   reportPath: string;
 }
-

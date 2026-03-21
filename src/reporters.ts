@@ -58,6 +58,8 @@ function buildFixRecipe(category: FailureCategory | null, configPath: string): s
     case "unknown":
       return [
         `Run \`npx drizzle-kit check --config ${configPath}\` locally and compare the raw output with the CI log.`,
+        "Double-check the working-directory input and confirm the config resolves without relying on missing env vars.",
+        "If the command hangs or times out, inspect database connectivity or long-running scripts in the config.",
         "If this is a repeatable drizzle-kit edge case, keep the raw output in the PR and tighten the parser in a follow-up release.",
       ];
     default:
@@ -182,7 +184,7 @@ export function renderCommentMarkdown(report: ActionReport): string {
   }
 
   if (failedResults.length === 0) {
-    lines.push("Current status: no blocking migration collision is left on this PR.");
+    lines.push("All checks passed: no blocking migration collision is left on this PR.");
     return lines.join("\n");
   }
 
@@ -206,4 +208,3 @@ export async function writeMarkdownReport(markdown: string): Promise<string> {
   await writeFile(reportPath, markdown, "utf8");
   return reportPath;
 }
-

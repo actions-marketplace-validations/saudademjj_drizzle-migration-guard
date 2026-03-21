@@ -5,10 +5,14 @@
   "private": false,
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsup src/index.ts --format cjs --target node20 --platform node --sourcemap --clean --out-dir dist",
+    "build": "tsup",
     "package": "npm run build",
-    "test": "tsx --test tests/**/*.test.ts",
-    "ci": "npm run build && npm test"
+    "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
+    "test": "node scripts/run-tests.mjs",
+    "test:coverage": "c8 --reporter=text --reporter=lcov --exclude 'scripts/**' --exclude '.tmp-*/**' --exclude 'tests/**' --exclude 'dist/**' --check-coverage --lines 84 --functions 97 --branches 78 --statements 84 npm test",
+    "verify:dist": "node scripts/verify-dist.mjs",
+    "ci": "npm run build && npm test",
+    "ci:strict": "npm run typecheck && npm run ci && npm run test:coverage && npm run verify:dist"
   },
   "keywords": [
     "drizzle",
@@ -31,10 +35,13 @@
     "@actions/core": "^1.11.1",
     "@actions/exec": "^1.1.1",
     "@actions/github": "^6.0.1",
+    "fast-glob": "^3.3.2",
+    "jiti": "^1.21.0",
     "minimatch": "^10.1.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "c8": "^11.0.0",
     "drizzle-kit": "0.31.8",
     "drizzle-orm": "0.44.7",
     "tsup": "^8.3.5",

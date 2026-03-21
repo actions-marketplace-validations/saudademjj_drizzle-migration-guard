@@ -6,12 +6,16 @@ branding:
   color: blue
 inputs:
   config:
-    description: Comma or newline separated drizzle config paths. Defaults to drizzle.config.ts in the working directory.
+    description: Comma or newline separated drizzle config paths or glob patterns. Defaults to drizzle.config.ts in the working directory.
     required: false
   working-directory:
     description: Directory where drizzle-kit should run. Defaults to the GitHub workspace root.
     required: false
     default: .
+  timeout-seconds:
+    description: Timeout (in seconds) for drizzle-kit check. Defaults to 60.
+    required: false
+    default: "60"
   fail-on:
     description: Blocking mode. Use collision, all, or none.
     required: false
@@ -33,4 +37,3 @@ outputs:
 runs:
   using: node20
   main: dist/index.js
-

@@ -57,11 +57,12 @@ jobs:
 
 | Input | Default | Notes |
 | --- | --- | --- |
-| `config` | empty | Comma or newline separated config paths. Use this for multi-package repos. |
+| `config` | empty | Comma or newline separated config paths or glob patterns. Use this for multi-package repos. |
 | `working-directory` | `.` | Directory where `drizzle-kit check` runs. |
 | `fail-on` | `collision` | `collision`, `all`, or `none`. |
 | `comment-mode` | `sticky` | `sticky` or `off`. |
 | `github-token` | empty | Used to read PR files and update the sticky comment. |
+| `timeout-seconds` | `60` | Timeout for `drizzle-kit check` (seconds). |
 
 ## Outputs
 

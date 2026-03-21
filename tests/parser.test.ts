@@ -8,10 +8,12 @@ const target: ConfigTarget = {
   configPath: "/tmp/repo/drizzle.config.ts",
   configPathRelative: "drizzle.config.ts",
   configDirectory: "/tmp/repo",
+  configDirectoryRelative: "",
   migrationDirectory: "/tmp/repo/drizzle",
   migrationDirectoryRelative: "drizzle",
   schemaPatterns: ["src/db/schema.ts"],
   relevantPatterns: ["drizzle.config.ts", "drizzle/**", "src/db/schema.ts"],
+  needsDynamicResolution: false,
 };
 
 function execution(overrides: Partial<CheckExecution>): CheckExecution {
@@ -64,3 +66,17 @@ test("classifies missing dependency errors as config/dependency", () => {
   assert.equal(result.category, "config/dependency");
 });
 
+test("classifies timeouts as unknown with a timeout headline", () => {
+  const result = parseCheckExecution(
+    execution({
+      exitCode: -1,
+      stderr: "drizzle-kit check timed out after 60s.",
+      timedOut: true,
+      timeoutMs: 60_000,
+    }),
+  );
+
+  assert.equal(result.passed, false);
+  assert.equal(result.category, "unknown");
+  assert.match(result.headline, /timed out/i);
+});
