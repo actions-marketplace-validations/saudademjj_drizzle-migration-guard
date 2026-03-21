@@ -1,5 +1,9 @@
+import * as core from "@actions/core";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
+
+import fg, { isDynamicPattern } from "fast-glob";
+import jiti from "jiti";
 
 import type { ConfigTarget } from "./types.js";
 import {
@@ -45,6 +49,10 @@ function parseSingleStringProperty(source: string, propertyName: string): string
   return match?.[1] ?? null;
 }
 
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+}
+
 function parseSchemaPatterns(source: string): string[] {
   const arrayMatch = source.match(/\bschema\s*:\s*\[([\s\S]*?)\]/m);
   if (arrayMatch) {
@@ -53,6 +61,61 @@ function parseSchemaPatterns(source: string): string[] {
 
   const single = parseSingleStringProperty(source, "schema");
   return single ? [single] : [];
+}
+
+function normalizeSchemaValue(value: unknown): string[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  return [];
+}
+
+function normalizeOutValue(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+async function loadConfigExport(configPath: string): Promise<unknown | null> {
+  try {
+    const loader = jiti(configPath, { interopDefault: true, esmResolve: true, cache: false });
+    const loaded = loader(configPath);
+    const resolved = loaded && typeof loaded === "object" && "default" in loaded ? loaded.default : loaded;
+    if (resolved && typeof (resolved as Promise<unknown>)?.then === "function") {
+      return await (resolved as Promise<unknown>);
+    }
+    return resolved ?? null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    core.debug(`Failed to load drizzle config ${configPath} via jiti: ${message}`);
+    return null;
+  }
+}
+
+function normalizeConfigExport(configExport: unknown): Record<string, unknown> | null {
+  if (!configExport) {
+    return null;
+  }
+
+  if (typeof configExport === "function") {
+    try {
+      const result = configExport();
+      return result && typeof result === "object" ? (result as Record<string, unknown>) : null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      core.debug(`Failed to execute drizzle config export: ${message}`);
+      return null;
+    }
+  }
+
+  if (typeof configExport === "object") {
+    return configExport as Record<string, unknown>;
+  }
+
+  return null;
 }
 
 function normalizePatternToWorkspace(
@@ -66,10 +129,20 @@ function normalizePatternToWorkspace(
 
 async function buildConfigTarget(configPath: string, workspaceRoot: string): Promise<ConfigTarget> {
   const source = await readFile(configPath, "utf8");
+  const strippedSource = stripComments(source);
   const configDirectory = path.dirname(configPath);
-  const migrationDirectoryRaw = parseSingleStringProperty(source, "out") ?? "drizzle";
+  const configExport = await loadConfigExport(configPath);
+  const configObject = normalizeConfigExport(configExport);
+  const schemaFromConfig = configObject ? normalizeSchemaValue(configObject.schema) : [];
+  const outFromConfig = configObject ? normalizeOutValue(configObject.out) : null;
+
+  const schemaPatternsRaw =
+    schemaFromConfig.length > 0 ? schemaFromConfig : parseSchemaPatterns(strippedSource);
+  const migrationDirectoryRaw =
+    outFromConfig ?? parseSingleStringProperty(strippedSource, "out") ?? "drizzle";
+
   const migrationDirectory = path.resolve(configDirectory, migrationDirectoryRaw);
-  const schemaPatterns = parseSchemaPatterns(source).map((pattern) =>
+  const schemaPatterns = schemaPatternsRaw.map((pattern) =>
     normalizePatternToWorkspace(pattern, configDirectory, workspaceRoot),
   );
 
@@ -94,6 +167,30 @@ async function buildConfigTarget(configPath: string, workspaceRoot: string): Pro
   };
 }
 
+async function resolveExplicitConfigs(configInput: string[], workingDirectory: string): Promise<string[]> {
+  const resolved: string[] = [];
+
+  for (const entry of configInput) {
+    if (isDynamicPattern(entry)) {
+      const matches = await fg(entry, {
+        cwd: workingDirectory,
+        absolute: true,
+        onlyFiles: true,
+        dot: true,
+      });
+      if (matches.length === 0) {
+        throw new Error(`Config glob did not match any files: ${entry}`);
+      }
+      resolved.push(...matches);
+      continue;
+    }
+
+    resolved.push(path.isAbsolute(entry) ? entry : path.resolve(workingDirectory, entry));
+  }
+
+  return unique(resolved);
+}
+
 export async function discoverConfigTargets(options: {
   workspaceRoot: string;
   workingDirectory: string;
@@ -103,11 +200,7 @@ export async function discoverConfigTargets(options: {
 
   const configPaths =
     explicitConfigs.length > 0
-      ? explicitConfigs.map((config) =>
-          path.isAbsolute(config)
-            ? config
-            : path.resolve(options.workingDirectory, config),
-        )
+      ? await resolveExplicitConfigs(explicitConfigs, options.workingDirectory)
       : await discoverDefaultConfig(options.workingDirectory);
 
   for (const configPath of configPaths) {
@@ -141,4 +234,3 @@ export function findMatchedFiles(target: ConfigTarget, changedFiles: string[]): 
     target.relevantPatterns.some((pattern) => matchesRelevantPattern(file, pattern)),
   );
 }
-

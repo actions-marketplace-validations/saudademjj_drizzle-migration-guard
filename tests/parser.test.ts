@@ -64,3 +64,17 @@ test("classifies missing dependency errors as config/dependency", () => {
   assert.equal(result.category, "config/dependency");
 });
 
+test("classifies timeouts as unknown with a timeout headline", () => {
+  const result = parseCheckExecution(
+    execution({
+      exitCode: -1,
+      stderr: "drizzle-kit check timed out after 60s.",
+      timedOut: true,
+      timeoutMs: 60_000,
+    }),
+  );
+
+  assert.equal(result.passed, false);
+  assert.equal(result.category, "unknown");
+  assert.match(result.headline, /timed out/i);
+});

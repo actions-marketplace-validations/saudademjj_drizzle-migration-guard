@@ -2,6 +2,7 @@ import type { CheckExecution, FailureCategory, ParsedCheck } from "./types.js";
 import { shorten, stripAnsi, unique } from "./utils.js";
 
 const NOISE_PATTERNS = [/^No config path provided/i, /^Reading config file /i];
+const TIMEOUT_PATTERNS = [/timed out/i, /timeout/i, /operation was canceled/i];
 
 function extractInterestingLines(output: string): string[] {
   const clean = stripAnsi(output)
@@ -13,7 +14,11 @@ function extractInterestingLines(output: string): string[] {
   return unique(clean);
 }
 
-function classifyFailure(output: string): FailureCategory {
+function classifyFailure(output: string, timedOut: boolean): FailureCategory {
+  if (timedOut || TIMEOUT_PATTERNS.some((pattern) => pattern.test(output))) {
+    return "unknown";
+  }
+
   if (
     /(which is a collision|data is malformed|snapshot is of unsupported version|is not of the latest version|drizzle\/meta\/.+snapshot\.json)/i.test(
       output,
@@ -37,7 +42,14 @@ function classifyFailure(output: string): FailureCategory {
   return "unknown";
 }
 
-function buildHeadline(category: FailureCategory): string {
+function buildHeadline(category: FailureCategory, timedOut: boolean, timeoutMs?: number): string {
+  if (timedOut) {
+    const timeoutSeconds = timeoutMs ? Math.ceil(timeoutMs / 1000) : null;
+    return timeoutSeconds
+      ? `drizzle-kit check timed out after ${timeoutSeconds}s`
+      : "drizzle-kit check timed out";
+  }
+
   switch (category) {
     case "collision/history":
       return "Drizzle reported a migration history collision";
@@ -61,16 +73,16 @@ export function parseCheckExecution(execution: CheckExecution): ParsedCheck {
   }
 
   const details = extractInterestingLines(combinedOutput);
-  const category = classifyFailure(combinedOutput);
+  const timedOut = Boolean(execution.timedOut) || TIMEOUT_PATTERNS.some((pattern) => pattern.test(combinedOutput));
+  const category = classifyFailure(combinedOutput, timedOut);
 
   return {
     passed: false,
     category,
-    headline: buildHeadline(category),
+    headline: buildHeadline(category, timedOut, execution.timeoutMs),
     details:
       details.length > 0
         ? details.map((line) => shorten(line, 280)).slice(0, 8)
         : [`drizzle-kit exited with code ${execution.exitCode}.`],
   };
 }
-

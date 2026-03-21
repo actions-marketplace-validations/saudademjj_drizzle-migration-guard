@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildOverallSummary,
   deriveOverallStatus,
+  isBlockingFailure,
   renderCommentMarkdown,
   renderReportMarkdown,
 } from "../src/reporters.js";
@@ -60,6 +61,14 @@ test("builds a readable overall summary and markdown report", () => {
   assert.match(markdown, /drizzle-kit generate/);
 });
 
+test("honors fail-on modes when determining blocking failures", () => {
+  assert.equal(isBlockingFailure("collision/history", "collision"), true);
+  assert.equal(isBlockingFailure("config/dependency", "collision"), false);
+  assert.equal(isBlockingFailure("unknown", "all"), true);
+  assert.equal(isBlockingFailure(null, "all"), false);
+  assert.equal(isBlockingFailure("collision/history", "none"), false);
+});
+
 test("renders sticky PR comments for failing checks", () => {
   const report: ActionReport = {
     status: "failure",
@@ -83,4 +92,3 @@ test("renders sticky PR comments for failing checks", () => {
   assert.match(markdown, /drizzle-migration-guard/);
   assert.match(markdown, /Pull the latest default branch/);
 });
-

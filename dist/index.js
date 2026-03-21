@@ -23,8 +23,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 
 // src/index.ts
-var core2 = __toESM(require("@actions/core"));
-var import_node_path5 = __toESM(require("path"));
+var core3 = __toESM(require("@actions/core"));
+var import_promises3 = require("fs/promises");
+var import_node_path6 = __toESM(require("path"));
 
 // src/checker.ts
 var exec = __toESM(require("@actions/exec"));
@@ -32,6 +33,7 @@ var import_node_path = __toESM(require("path"));
 async function runDrizzleCheck(target, workingDirectory, options = {}) {
   let stdout = "";
   let stderr = "";
+  let timedOut = false;
   const binary = options.toolingDirectory !== void 0 ? import_node_path.default.join(
     options.toolingDirectory,
     "node_modules",
@@ -40,41 +42,63 @@ async function runDrizzleCheck(target, workingDirectory, options = {}) {
   ) : "npx";
   const args = options.toolingDirectory !== void 0 ? ["check", "--config", target.configPath] : ["--no-install", "drizzle-kit", "check", "--config", target.configPath];
   const command = `${binary} ${args.join(" ")}`;
-  const exitCode = await exec.exec(binary, args, {
-    cwd: workingDirectory,
-    ignoreReturnCode: true,
-    silent: true,
-    env: {
-      ...process.env,
-      FORCE_COLOR: "0"
-    },
-    listeners: {
-      stdout: (chunk) => {
-        stdout += chunk.toString();
+  const timeoutMs = options.timeoutMs ?? 6e4;
+  let exitCode = -1;
+  try {
+    exitCode = await exec.exec(binary, args, {
+      cwd: workingDirectory,
+      ignoreReturnCode: true,
+      silent: true,
+      timeout: timeoutMs > 0 ? timeoutMs : void 0,
+      env: {
+        ...process.env,
+        FORCE_COLOR: "0",
+        NO_COLOR: "1"
       },
-      stderr: (chunk) => {
-        stderr += chunk.toString();
+      listeners: {
+        stdout: (chunk) => {
+          stdout += chunk.toString();
+        },
+        stderr: (chunk) => {
+          stderr += chunk.toString();
+        }
       }
+    });
+  } catch (error2) {
+    const message = error2 instanceof Error ? error2.message : String(error2);
+    timedOut = timeoutMs > 0 && /timed out|timeout|operation was canceled|canceled/i.test(message);
+    stderr += stderr ? `
+${message}` : message;
+    if (timedOut) {
+      const timeoutSeconds = Math.ceil(timeoutMs / 1e3);
+      const timeoutNotice = `drizzle-kit check timed out after ${timeoutSeconds}s.`;
+      stderr += `
+${timeoutNotice}`;
     }
-  });
+  }
   return {
     target,
     exitCode,
     stdout,
     stderr,
-    command
+    command,
+    timedOut,
+    timeoutMs
   };
 }
 
 // src/discovery.ts
+var core = __toESM(require("@actions/core"));
 var import_promises = require("fs/promises");
 var import_node_path3 = __toESM(require("path"));
+var import_fast_glob = __toESM(require("fast-glob"));
+var import_jiti = __toESM(require("jiti"));
 
 // src/utils.ts
 var import_node_path2 = __toESM(require("path"));
 var import_minimatch = require("minimatch");
 function toPosixPath(value) {
-  return value.split(import_node_path2.default.sep).join("/");
+  return value.replace(/\\/g, "/");
 }
 function workspaceRelative(absolutePath, workspaceRoot) {
   const relative = toPosixPath(import_node_path2.default.relative(workspaceRoot, absolutePath));
@@ -99,7 +123,7 @@ function extractStringLiterals(value) {
 }
 function normalizeFileList(files) {
   return unique(
-    files.map((file) => file.trim()).filter(Boolean).map((file) => file.replace(/^\/+/, "")).map((file) => file.replace(/\\/g, "/"))
+    files.map((file) => file.trim()).filter(Boolean).map((file) => file.replace(/\\/g, "/")).map((file) => file.replace(/\/{2,}/g, "/")).map((file) => file.replace(/^\/+/, ""))
   );
 }
 function matchesRelevantPattern(file, pattern) {
@@ -153,6 +177,9 @@ function parseSingleStringProperty(source, propertyName) {
   );
   return match?.[1] ?? null;
 }
+function stripComments(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+}
 function parseSchemaPatterns(source) {
   const arrayMatch = source.match(/\bschema\s*:\s*\[([\s\S]*?)\]/m);
   if (arrayMatch) {
@@ -161,16 +188,68 @@ function parseSchemaPatterns(source) {
   const single = parseSingleStringProperty(source, "schema");
   return single ? [single] : [];
 }
+function normalizeSchemaValue(value) {
+  if (typeof value === "string") {
+    return [value];
+  }
+  if (Array.isArray(value)) {
+    return value.filter((item) => typeof item === "string");
+  }
+  return [];
+}
+function normalizeOutValue(value) {
+  return typeof value === "string" ? value : null;
+}
+async function loadConfigExport(configPath) {
+  try {
+    const loader = (0, import_jiti.default)(configPath, { interopDefault: true, esmResolve: true, cache: false });
+    const loaded = loader(configPath);
+    const resolved = loaded && typeof loaded === "object" && "default" in loaded ? loaded.default : loaded;
+    if (resolved && typeof resolved?.then === "function") {
+      return await resolved;
+    }
+    return resolved ?? null;
+  } catch (error2) {
+    const message = error2 instanceof Error ? error2.message : String(error2);
+    core.debug(`Failed to load drizzle config ${configPath} via jiti: ${message}`);
+    return null;
+  }
+}
+function normalizeConfigExport(configExport) {
+  if (!configExport) {
+    return null;
+  }
+  if (typeof configExport === "function") {
+    try {
+      const result = configExport();
+      return result && typeof result === "object" ? result : null;
+    } catch (error2) {
+      const message = error2 instanceof Error ? error2.message : String(error2);
+      core.debug(`Failed to execute drizzle config export: ${message}`);
+      return null;
+    }
+  }
+  if (typeof configExport === "object") {
+    return configExport;
+  }
+  return null;
+}
 function normalizePatternToWorkspace(rawPattern, configDirectory, workspaceRoot) {
   const joined = import_node_path3.default.resolve(configDirectory, rawPattern);
   return workspaceRelative(joined, workspaceRoot);
 }
 async function buildConfigTarget(configPath, workspaceRoot) {
   const source = await (0, import_promises.readFile)(configPath, "utf8");
+  const strippedSource = stripComments(source);
   const configDirectory = import_node_path3.default.dirname(configPath);
-  const migrationDirectoryRaw = parseSingleStringProperty(source, "out") ?? "drizzle";
+  const configExport = await loadConfigExport(configPath);
+  const configObject = normalizeConfigExport(configExport);
+  const schemaFromConfig = configObject ? normalizeSchemaValue(configObject.schema) : [];
+  const outFromConfig = configObject ? normalizeOutValue(configObject.out) : null;
+  const schemaPatternsRaw = schemaFromConfig.length > 0 ? schemaFromConfig : parseSchemaPatterns(strippedSource);
+  const migrationDirectoryRaw = outFromConfig ?? parseSingleStringProperty(strippedSource, "out") ?? "drizzle";
   const migrationDirectory = import_node_path3.default.resolve(configDirectory, migrationDirectoryRaw);
-  const schemaPatterns = parseSchemaPatterns(source).map(
+  const schemaPatterns = schemaPatternsRaw.map(
     (pattern) => normalizePatternToWorkspace(pattern, configDirectory, workspaceRoot)
   );
   const configPathRelative = workspaceRelative(configPath, workspaceRoot);
@@ -191,11 +270,29 @@ async function buildConfigTarget(configPath, workspaceRoot) {
     relevantPatterns
   };
 }
+async function resolveExplicitConfigs(configInput, workingDirectory) {
+  const resolved = [];
+  for (const entry of configInput) {
+    if ((0, import_fast_glob.isDynamicPattern)(entry)) {
+      const matches = await (0, import_fast_glob.default)(entry, {
+        cwd: workingDirectory,
+        absolute: true,
+        onlyFiles: true,
+        dot: true
+      });
+      if (matches.length === 0) {
+        throw new Error(`Config glob did not match any files: ${entry}`);
+      }
+      resolved.push(...matches);
+      continue;
+    }
+    resolved.push(import_node_path3.default.isAbsolute(entry) ? entry : import_node_path3.default.resolve(workingDirectory, entry));
+  }
+  return unique(resolved);
+}
 async function discoverConfigTargets(options) {
   const explicitConfigs = splitInputList(options.configInput);
-  const configPaths = explicitConfigs.length > 0 ? explicitConfigs.map(
-    (config) => import_node_path3.default.isAbsolute(config) ? config : import_node_path3.default.resolve(options.workingDirectory, config)
-  ) : await discoverDefaultConfig(options.workingDirectory);
+  const configPaths = explicitConfigs.length > 0 ? await resolveExplicitConfigs(explicitConfigs, options.workingDirectory) : await discoverDefaultConfig(options.workingDirectory);
   for (const configPath of configPaths) {
     if (!await fileExists(configPath)) {
       throw new Error(`Could not find drizzle config at ${configPath}`);
@@ -224,7 +321,7 @@ function findMatchedFiles(target, changedFiles) {
 }
 
 // src/github.ts
-var core = __toESM(require("@actions/core"));
+var core2 = __toESM(require("@actions/core"));
 var github = __toESM(require("@actions/github"));
 function getPullRequestNumber() {
   const pullRequest = github.context.payload.pull_request;
@@ -238,59 +335,116 @@ async function getPullRequestChangedFiles(githubToken) {
   if (!pullRequestNumber || !githubToken) {
     return null;
   }
-  const { owner, repo } = github.context.repo;
-  const octokit = github.getOctokit(githubToken);
-  const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
-    owner,
-    repo,
-    pull_number: pullRequestNumber,
-    per_page: 100
-  });
-  return normalizeFileList(files.map((file) => file.filename));
+  try {
+    const { owner, repo } = github.context.repo;
+    const octokit = github.getOctokit(githubToken);
+    const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
+      owner,
+      repo,
+      pull_number: pullRequestNumber,
+      per_page: 100
+    });
+    return normalizeFileList(files.map((file) => file.filename));
+  } catch (error2) {
+    const message = error2 instanceof Error ? error2.message : String(error2);
+    core2.warning(`Failed to load PR files from GitHub: ${message}`);
+    return null;
+  }
 }
 async function syncStickyComment(options) {
   const pullRequestNumber = getPullRequestNumber();
   if (!pullRequestNumber) {
     return;
   }
-  const { owner, repo } = github.context.repo;
-  const octokit = github.getOctokit(options.githubToken);
-  const comments = await octokit.paginate(octokit.rest.issues.listComments, {
-    owner,
-    repo,
-    issue_number: pullRequestNumber,
-    per_page: 100
-  });
-  const existing = comments.find((comment) => comment.body?.includes(options.marker));
-  if (existing) {
-    await octokit.rest.issues.updateComment({
+  try {
+    const { owner, repo } = github.context.repo;
+    const octokit = github.getOctokit(options.githubToken);
+    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
       owner,
       repo,
-      comment_id: existing.id,
+      issue_number: pullRequestNumber,
+      per_page: 100
+    });
+    const existing = comments.find((comment) => comment.body?.includes(options.marker));
+    if (existing) {
+      await octokit.rest.issues.updateComment({
+        owner,
+        repo,
+        comment_id: existing.id,
+        body: options.body
+      });
+      core2.info(`Updated sticky PR comment ${existing.id}.`);
+      return;
+    }
+    if (!options.allowCreate) {
+      return;
+    }
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: pullRequestNumber,
       body: options.body
     });
-    core.info(`Updated sticky PR comment ${existing.id}.`);
-    return;
+    core2.info("Created sticky PR comment.");
+  } catch (error2) {
+    const message = error2 instanceof Error ? error2.message : String(error2);
+    core2.warning(`Failed to sync sticky PR comment: ${message}`);
   }
-  if (!options.allowCreate) {
-    return;
+}
+
+// src/inputs.ts
+var import_node_path4 = __toESM(require("path"));
+function parseFailOnMode(raw) {
+  const value = raw.trim();
+  if (!value) {
+    return "collision";
   }
-  await octokit.rest.issues.createComment({
-    owner,
-    repo,
-    issue_number: pullRequestNumber,
-    body: options.body
-  });
-  core.info("Created sticky PR comment.");
+  if (value === "collision" || value === "all" || value === "none") {
+    return value;
+  }
+  throw new Error(`Invalid input "fail-on": ${raw}. Use collision, all, or none.`);
+}
+function parseCommentMode(raw) {
+  const value = raw.trim();
+  if (!value) {
+    return "sticky";
+  }
+  if (value === "sticky" || value === "off") {
+    return value;
+  }
+  throw new Error(`Invalid input "comment-mode": ${raw}. Use sticky or off.`);
+}
+function parseTimeoutSeconds(raw) {
+  const value = raw.trim();
+  if (!value) {
+    return 60;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`Invalid input "timeout-seconds": ${raw}. Use a positive number.`);
+  }
+  return Math.floor(parsed);
+}
+function assertWorkingDirectory(workspaceRoot, workingDirectory) {
+  const relative = import_node_path4.default.relative(workspaceRoot, workingDirectory);
+  if (relative.startsWith("..") || import_node_path4.default.isAbsolute(relative)) {
+    throw new Error(
+      `working-directory must resolve within the workspace (${workspaceRoot}). Got ${workingDirectory}.`
+    );
+  }
 }
 
 // src/parser.ts
 var NOISE_PATTERNS = [/^No config path provided/i, /^Reading config file /i];
+var TIMEOUT_PATTERNS = [/timed out/i, /timeout/i, /operation was canceled/i];
 function extractInterestingLines(output) {
   const clean = stripAnsi(output).split(/\r?\n/).map((line) => line.trim()).filter(Boolean).filter((line) => !NOISE_PATTERNS.some((pattern) => pattern.test(line)));
   return unique(clean);
 }
-function classifyFailure(output) {
+function classifyFailure(output, timedOut) {
+  if (timedOut || TIMEOUT_PATTERNS.some((pattern) => pattern.test(output))) {
+    return "unknown";
+  }
   if (/(which is a collision|data is malformed|snapshot is of unsupported version|is not of the latest version|drizzle\/meta\/.+snapshot\.json)/i.test(
     output
   )) {
@@ -306,7 +460,11 @@ function classifyFailure(output) {
   }
   return "unknown";
 }
-function buildHeadline(category) {
+function buildHeadline(category, timedOut, timeoutMs) {
+  if (timedOut) {
+    const timeoutSeconds = timeoutMs ? Math.ceil(timeoutMs / 1e3) : null;
+    return timeoutSeconds ? `drizzle-kit check timed out after ${timeoutSeconds}s` : "drizzle-kit check timed out";
+  }
   switch (category) {
     case "collision/history":
       return "Drizzle reported a migration history collision";
@@ -327,11 +485,12 @@ function parseCheckExecution(execution) {
     };
   }
   const details = extractInterestingLines(combinedOutput);
-  const category = classifyFailure(combinedOutput);
+  const timedOut = Boolean(execution.timedOut) || TIMEOUT_PATTERNS.some((pattern) => pattern.test(combinedOutput));
+  const category = classifyFailure(combinedOutput, timedOut);
   return {
     passed: false,
     category,
-    headline: buildHeadline(category),
+    headline: buildHeadline(category, timedOut, execution.timeoutMs),
     details: details.length > 0 ? details.map((line) => shorten(line, 280)).slice(0, 8) : [`drizzle-kit exited with code ${execution.exitCode}.`]
   };
 }
@@ -339,7 +498,7 @@ function parseCheckExecution(execution) {
 // src/reporters.ts
 var import_promises2 = require("fs/promises");
 var import_node_os = __toESM(require("os"));
-var import_node_path4 = __toESM(require("path"));
+var import_node_path5 = __toESM(require("path"));
 var COMMENT_MARKER = "<!-- drizzle-migration-guard -->";
 function isBlockingFailure(category, failOn) {
   if (category === null || failOn === "none") {
@@ -379,6 +538,8 @@ function buildFixRecipe(category, configPath) {
     case "unknown":
       return [
         `Run \`npx drizzle-kit check --config ${configPath}\` locally and compare the raw output with the CI log.`,
+        "Double-check the working-directory input and confirm the config resolves without relying on missing env vars.",
+        "If the command hangs or times out, inspect database connectivity or long-running scripts in the config.",
         "If this is a repeatable drizzle-kit edge case, keep the raw output in the PR and tighten the parser in a follow-up release."
       ];
     default:
@@ -476,7 +637,7 @@ function renderCommentMarkdown(report) {
     return lines.join("\n");
   }
   if (failedResults.length === 0) {
-    lines.push("Current status: no blocking migration collision is left on this PR.");
+    lines.push("All checks passed: no blocking migration collision is left on this PR.");
     return lines.join("\n");
   }
   lines.push(renderTable(failedResults), "");
@@ -491,34 +652,78 @@ function renderCommentMarkdown(report) {
 }
 async function writeMarkdownReport(markdown) {
   const baseDirectory = process.env.RUNNER_TEMP ?? import_node_os.default.tmpdir();
-  const reportDirectory = await (0, import_promises2.mkdtemp)(import_node_path4.default.join(baseDirectory, "drizzle-migration-guard-"));
-  const reportPath = import_node_path4.default.join(reportDirectory, "report.md");
+  const reportDirectory = await (0, import_promises2.mkdtemp)(import_node_path5.default.join(baseDirectory, "drizzle-migration-guard-"));
+  const reportPath = import_node_path5.default.join(reportDirectory, "report.md");
   await (0, import_promises2.writeFile)(reportPath, markdown, "utf8");
   return reportPath;
 }
 
 // src/index.ts
-function parseFailOnMode(raw) {
-  if (raw === "all" || raw === "none") {
-    return raw;
-  }
-  return "collision";
-}
-function parseCommentMode(raw) {
-  return raw === "off" ? "off" : "sticky";
-}
 function resolveInputs() {
-  const workspaceRoot = import_node_path5.default.resolve(process.env.GITHUB_WORKSPACE ?? process.cwd());
-  const workingDirectoryInput = core2.getInput("working-directory") || ".";
-  const workingDirectory = import_node_path5.default.resolve(workspaceRoot, workingDirectoryInput);
+  const workspaceRoot = import_node_path6.default.resolve(process.env.GITHUB_WORKSPACE ?? process.cwd());
+  const workingDirectoryInput = core3.getInput("working-directory") || ".";
+  const workingDirectory = import_node_path6.default.resolve(workspaceRoot, workingDirectoryInput);
   return {
     workspaceRoot,
     workingDirectory,
-    configInput: core2.getInput("config"),
-    failOn: parseFailOnMode(core2.getInput("fail-on")),
-    commentMode: parseCommentMode(core2.getInput("comment-mode")),
-    githubToken: core2.getInput("github-token")
+    configInput: core3.getInput("config"),
+    failOn: parseFailOnMode(core3.getInput("fail-on")),
+    commentMode: parseCommentMode(core3.getInput("comment-mode")),
+    githubToken: core3.getInput("github-token"),
+    timeoutSeconds: parseTimeoutSeconds(core3.getInput("timeout-seconds"))
   };
+}
+async function fileExists2(filePath) {
+  try {
+    await (0, import_promises3.access)(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function findNearestPackageJson(startDirectory, workspaceRoot) {
+  let current = startDirectory;
+  const root = import_node_path6.default.resolve(workspaceRoot);
+  while (true) {
+    const candidate = import_node_path6.default.join(current, "package.json");
+    if (await fileExists2(candidate)) {
+      return candidate;
+    }
+    if (current === root) {
+      break;
+    }
+    const parent = import_node_path6.default.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+  return null;
+}
+async function warnIfDrizzleKitNotPinned(workingDirectory, workspaceRoot) {
+  const packageJsonPath = await findNearestPackageJson(workingDirectory, workspaceRoot);
+  if (!packageJsonPath) {
+    core3.debug("No package.json found to check drizzle-kit version.");
+    return;
+  }
+  try {
+    const raw = await (0, import_promises3.readFile)(packageJsonPath, "utf8");
+    const data = JSON.parse(raw);
+    const version = data.dependencies?.["drizzle-kit"] ?? data.devDependencies?.["drizzle-kit"] ?? data.peerDependencies?.["drizzle-kit"];
+    if (!version) {
+      core3.warning(
+        `drizzle-kit is not declared in ${import_node_path6.default.relative(
+          workspaceRoot,
+          packageJsonPath
+        )}. Add it to devDependencies to pin the version used by npx.`
+      );
+      return;
+    }
+    core3.debug(`drizzle-kit version resolved from package.json: ${version}`);
+  } catch (error2) {
+    const message = error2 instanceof Error ? error2.message : String(error2);
+    core3.warning(`Failed to read ${packageJsonPath} for drizzle-kit version: ${message}`);
+  }
 }
 function buildSkippedResult(target, matchedFiles) {
   return {
@@ -538,11 +743,11 @@ function buildSkippedResult(target, matchedFiles) {
 function publishAnnotations(results) {
   for (const result of results) {
     if (result.status === "success") {
-      core2.info(`[${result.target.configPathRelative}] ${result.summary}`);
+      core3.info(`[${result.target.configPathRelative}] ${result.summary}`);
       continue;
     }
     if (result.status === "skipped") {
-      core2.info(`[${result.target.configPathRelative}] ${result.summary}`);
+      core3.info(`[${result.target.configPathRelative}] ${result.summary}`);
       continue;
     }
     const message = [
@@ -551,48 +756,74 @@ function publishAnnotations(results) {
       `Command: ${result.command ?? "n/a"}`
     ].join("\n");
     if (result.blocking) {
-      core2.error(message);
+      core3.error(message);
     } else {
-      core2.warning(message);
+      core3.warning(message);
     }
   }
 }
 async function run() {
   const inputs = resolveInputs();
-  core2.startGroup("Discover Drizzle configs");
+  assertWorkingDirectory(inputs.workspaceRoot, inputs.workingDirectory);
+  await warnIfDrizzleKitNotPinned(inputs.workingDirectory, inputs.workspaceRoot);
+  core3.debug(
+    `Inputs: ${JSON.stringify(
+      {
+        workspaceRoot: inputs.workspaceRoot,
+        workingDirectory: inputs.workingDirectory,
+        configInput: inputs.configInput,
+        failOn: inputs.failOn,
+        commentMode: inputs.commentMode,
+        timeoutSeconds: inputs.timeoutSeconds,
+        hasGithubToken: Boolean(inputs.githubToken)
+      },
+      null,
+      2
+    )}`
+  );
+  core3.startGroup("Discover Drizzle configs");
   const targets = await discoverConfigTargets({
     workspaceRoot: inputs.workspaceRoot,
     workingDirectory: inputs.workingDirectory,
     configInput: inputs.configInput
   });
   targets.forEach((target) => {
-    core2.info(
+    core3.info(
       `Found ${target.configPathRelative} with migration directory ${target.migrationDirectoryRelative}`
     );
+    core3.debug(
+      `[${target.configPathRelative}] schema patterns: ${target.schemaPatterns.join(", ") || "none"}`
+    );
   });
-  core2.endGroup();
+  core3.endGroup();
   let changedFiles = null;
   if (hasPullRequestContext() && inputs.githubToken) {
-    core2.startGroup("Read pull request files");
+    core3.startGroup("Read pull request files");
     changedFiles = await getPullRequestChangedFiles(inputs.githubToken);
-    core2.info(`Loaded ${changedFiles?.length ?? 0} changed file(s) from the pull request.`);
-    core2.endGroup();
+    core3.info(`Loaded ${changedFiles?.length ?? 0} changed file(s) from the pull request.`);
+    if (changedFiles && changedFiles.length > 0) {
+      core3.debug(`First changed files: ${changedFiles.slice(0, 10).join(", ")}`);
+    }
+    core3.endGroup();
   } else if (hasPullRequestContext()) {
-    core2.warning("github-token was not provided, so drizzle-migration-guard will check every config.");
+    core3.warning("github-token was not provided, so drizzle-migration-guard will check every config.");
   }
   const results = [];
   for (const target of targets) {
     const matchedFiles = changedFiles ? findMatchedFiles(target, changedFiles) : [];
     const shouldSkip = changedFiles !== null && matchedFiles.length === 0;
     if (shouldSkip) {
+      core3.debug(`Skipping ${target.configPathRelative} (no matching files in PR).`);
       results.push(buildSkippedResult(target, matchedFiles));
       continue;
     }
-    core2.startGroup(`Run drizzle-kit check for ${target.configPathRelative}`);
-    const execution = await runDrizzleCheck(target, inputs.workingDirectory);
+    core3.startGroup(`Run drizzle-kit check for ${target.configPathRelative}`);
+    const execution = await runDrizzleCheck(target, inputs.workingDirectory, {
+      timeoutMs: inputs.timeoutSeconds * 1e3
+    });
     const parsed = parseCheckExecution(execution);
-    core2.info(parsed.headline);
-    core2.endGroup();
+    core3.info(parsed.headline);
+    core3.endGroup();
     results.push({
       target,
       status: parsed.passed ? "success" : "failed",
@@ -612,10 +843,10 @@ async function run() {
   const summary2 = buildOverallSummary(results, overallStatus);
   const markdown = renderReportMarkdown(summary2, results, overallStatus);
   const reportPath = await writeMarkdownReport(markdown);
-  await core2.summary.addRaw(markdown).write();
-  core2.setOutput("status", overallStatus);
-  core2.setOutput("summary", summary2);
-  core2.setOutput("report-path", reportPath);
+  await core3.summary.addRaw(markdown).write();
+  core3.setOutput("status", overallStatus);
+  core3.setOutput("summary", summary2);
+  core3.setOutput("report-path", reportPath);
   const hasFailures = results.some((result) => result.status === "failed");
   if (inputs.commentMode === "sticky" && inputs.githubToken && hasPullRequestContext()) {
     const commentBody = renderCommentMarkdown({
@@ -633,11 +864,11 @@ async function run() {
     });
   }
   if (overallStatus === "failure") {
-    core2.setFailed(summary2);
+    core3.setFailed(summary2);
   }
 }
 run().catch((error2) => {
   const message = error2 instanceof Error ? error2.message : String(error2);
-  core2.setFailed(message);
+  core3.setFailed(message);
 });
 //# sourceMappingURL=index.js.map

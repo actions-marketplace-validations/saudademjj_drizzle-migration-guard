@@ -11,6 +11,7 @@ export interface GuardInputs {
   failOn: FailOnMode;
   commentMode: CommentMode;
   githubToken: string;
+  timeoutSeconds: number;
 }
 
 export interface ConfigTarget {
@@ -29,6 +30,8 @@ export interface CheckExecution {
   stdout: string;
   stderr: string;
   command: string;
+  timedOut?: boolean;
+  timeoutMs?: number;
 }
 
 export interface ParsedCheck {
@@ -59,4 +62,3 @@ export interface ActionReport {
   markdown: string;
   reportPath: string;
 }
-
