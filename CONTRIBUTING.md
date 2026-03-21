@@ -59,6 +59,17 @@ Current CI coverage includes:
 - `docs/`: repository assets used by the README
 - `dist/`: committed action bundle consumed by GitHub Actions
 
+## TypeScript-first code standards
+
+The repository source is TypeScript-first.
+
+- Prefer `.ts` for runtime source and tests.
+- Do not add new JavaScript source files under `src/` unless a tooling boundary requires it.
+- Keep exported function signatures and shared data shapes explicit.
+- Prefer narrow types, discriminated unions, and small helper types over broad `string | any` style fallbacks.
+- Prefer `unknown` plus narrowing over `any`.
+- When a value comes from Drizzle config loading, GitHub payloads, or command output, validate and narrow it before use.
+
 ## Making changes
 
 When you update behavior, please keep these repo-specific rules in mind:

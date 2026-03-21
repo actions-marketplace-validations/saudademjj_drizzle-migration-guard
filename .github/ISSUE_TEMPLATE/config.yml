@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Contribution guide
+    url: https://github.com/saudademjj/drizzle-migration-guard/blob/main/CONTRIBUTING.md
+    about: Read the project's contribution workflow, validation expectations, and review standards.
+  - name: Code of Conduct
+    url: https://github.com/saudademjj/drizzle-migration-guard/blob/main/CODE_OF_CONDUCT.md
+    about: Review the community standards for participation in this repository.
+  - name: README and usage docs
+    url: https://github.com/saudademjj/drizzle-migration-guard/blob/main/README.md
+    about: Check the action inputs, outputs, examples, and troubleshooting notes before opening an issue.

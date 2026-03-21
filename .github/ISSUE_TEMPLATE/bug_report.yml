@@ -1,0 +1,149 @@
+name: Bug report
+description: Report a reproducible problem in drizzle-migration-guard
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+        Please include a minimal reproduction whenever possible. For matching or parser bugs, the most helpful reports usually include the changed PR files, the relevant `drizzle.config.*` shape, and the raw `drizzle-kit check` output.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      description: Please confirm the basics first.
+      options:
+        - label: I searched existing issues and did not find the same bug already reported.
+          required: true
+        - label: I read the repository Code of Conduct.
+          required: true
+
+  - type: dropdown
+    id: bug_area
+    attributes:
+      label: Affected area
+      description: Which part of the action seems wrong?
+      options:
+        - Config discovery or changed-file matching
+        - drizzle-kit execution or timeout handling
+        - Failure classification or parser behavior
+        - Markdown summary, report, or sticky comment output
+        - CI, smoke tests, or packaging
+        - Documentation or examples
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Bug summary
+      description: What is going wrong?
+      placeholder: The action skips a package config when only packages/api/package.json changes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: The action should treat the package-local package.json as relevant and run drizzle-kit check for that config.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: The action reports status=skipped and says no relevant Drizzle files changed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest set of steps needed to reproduce the bug.
+      placeholder: |
+        1. Create a repo with ...
+        2. Use this workflow ...
+        3. Open a PR that changes ...
+        4. Observe ...
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: config_snippet
+    attributes:
+      label: Relevant config or code snippet
+      description: Share the smallest `drizzle.config.*`, workflow snippet, or TypeScript source that reproduces the problem.
+      placeholder: |
+        export default {
+          schema: "./src/db/schema.ts",
+          out: "./drizzle",
+          dialect: "postgresql",
+        };
+      render: typescript
+
+  - type: textarea
+    id: raw_output
+    attributes:
+      label: Raw action or drizzle-kit output
+      description: Paste the relevant logs, step summary text, or sticky comment output.
+      render: text
+
+  - type: input
+    id: node_version
+    attributes:
+      label: Node.js version
+      placeholder: "20.18.0"
+
+  - type: input
+    id: drizzle_kit_version
+    attributes:
+      label: drizzle-kit version
+      placeholder: "0.31.8"
+
+  - type: dropdown
+    id: package_manager
+    attributes:
+      label: Package manager
+      options:
+        - npm
+        - pnpm
+        - yarn
+        - bun
+        - Other
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Where did you see the bug?
+      options:
+        - GitHub Actions only
+        - Local reproduction only
+        - Both local and GitHub Actions
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: changed_files
+    attributes:
+      label: Changed files in the PR (if relevant)
+      description: Especially helpful for matching and skip logic issues.
+      placeholder: |
+        packages/api/package.json
+        packages/api/drizzle/0002_add_index.sql
+      render: text
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional context
+      description: Anything else that would help debug the issue?

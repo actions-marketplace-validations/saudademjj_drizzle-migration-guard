@@ -1,0 +1,95 @@
+name: Feature request
+description: Propose an improvement to drizzle-migration-guard
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement.
+
+        The most actionable feature requests explain the problem first, keep the scope tight, and make the user-facing behavior explicit. If the proposal changes inputs, outputs, matching rules, or comment/report wording, please call that out directly.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and did not find the same request already filed.
+          required: true
+        - label: I read the repository Code of Conduct.
+          required: true
+
+  - type: dropdown
+    id: request_area
+    attributes:
+      label: Request area
+      options:
+        - Config discovery or changed-file matching
+        - drizzle-kit execution or timeout handling
+        - Failure classification or parser behavior
+        - Markdown summary, report, or sticky comment output
+        - CI, smoke tests, or packaging
+        - Documentation or examples
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What user problem is not solved well today?
+      placeholder: In monorepos, it is hard to ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior you want.
+      placeholder: Add an input that allows ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or other designs did you consider?
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: User-facing impact
+      options:
+        - label: This would change public action inputs or outputs.
+        - label: This would change matching or skip behavior.
+        - label: This would change summary, report, or sticky comment wording.
+        - label: This is documentation-only.
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List the outcomes that would make this request complete.
+      placeholder: |
+        - The action should ...
+        - The README should ...
+        - A regression test should cover ...
+      render: markdown
+
+  - type: textarea
+    id: config_or_api
+    attributes:
+      label: Relevant config, API, or TypeScript shape
+      description: If useful, share the expected workflow snippet, config shape, or type-safe API shape.
+      render: typescript
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional context
+      description: Links, examples, related issues, or prior art.
