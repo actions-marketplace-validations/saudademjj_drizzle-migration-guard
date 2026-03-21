@@ -18,6 +18,10 @@
 </p>
 
 <p align="center">
+  <strong>English</strong> · <a href="./README.zh-CN.md">简体中文</a>
+</p>
+
+<p align="center">
   <img src="./docs/hero.svg" alt="drizzle-migration-guard hero" width="1100" />
 </p>
 
@@ -29,6 +33,18 @@
 </p>
 
 `drizzle-migration-guard` wraps `drizzle-kit check`, turns raw failures into a short diagnosis, and leaves a sticky PR comment with concrete next steps when your migration history collides.
+
+## Feature matrix
+
+| Capability | Raw `drizzle-kit check` | `drizzle-migration-guard` |
+| --- | --- | --- |
+| Pull request-aware execution | Manual log inspection | Automatically scopes checks to relevant PR changes |
+| Collision diagnosis | Raw CLI output | Classifies failures into actionable categories |
+| GitHub Actions summary | Not provided by default | Writes a readable markdown summary |
+| Sticky PR comment | Not provided by default | Posts a fix-oriented PR comment |
+| Monorepo targeting | Manual scripting | Supports `working-directory` and explicit `config` input |
+| Blocking policy | All-or-nothing shell scripting | `collision`, `all`, or `none` via `fail-on` |
+| Re-run guidance | Reviewer must infer next steps | Gives a concrete fix recipe in the PR |
 
 ## Why this exists
 
@@ -163,24 +179,6 @@ npm test
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution workflow, validation expectations, and PR guidance, and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards.
 For support paths and maintainer expectations, see [SUPPORT.md](./SUPPORT.md) and [MAINTAINERS.md](./MAINTAINERS.md).
-
-## 中文说明
-
-`drizzle-migration-guard` 是一个面向 Pull Request 的 GitHub Action。它不是替代 Drizzle，而是把 `drizzle-kit check` 包装成团队更容易看懂的反馈层。
-
-它会做这些事：
-
-- 在 `working-directory` 下自动寻找 `drizzle.config.ts`
-- 只在 PR 改到了 Drizzle 相关文件时才执行
-- 把错误归类成 `collision/history`、`config/dependency`、`unknown`
-- 把结果写进 Actions summary
-- 在 PR 里维护一条 sticky comment，直接告诉你下一步怎么修
-
-默认修复路径也尽量简单：
-
-1. 拉取最新主分支并 rebase 或 merge。
-2. 重新运行 `npx drizzle-kit generate --config <your-config>`。
-3. 提交新的 migration，再次推送，等待 Action 复检。
 
 ## License
 
