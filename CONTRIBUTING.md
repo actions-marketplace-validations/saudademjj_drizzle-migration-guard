@@ -5,6 +5,7 @@ Thanks for helping improve `drizzle-migration-guard`.
 This project is a small GitHub Action, so high-signal contributions are usually the ones that keep behavior easy to reason about: focused fixes, clear docs, strong tests, and minimal surprise in CI.
 
 Please read [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) before participating. We want issue threads, PR reviews, and design discussions to stay respectful, calm, and useful.
+For support routing and maintainer expectations, see [SUPPORT.md](./SUPPORT.md) and [MAINTAINERS.md](./MAINTAINERS.md).
 
 ## Good ways to contribute
 

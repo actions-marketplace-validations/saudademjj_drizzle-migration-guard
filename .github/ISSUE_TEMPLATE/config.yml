@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Support guide
+    url: https://github.com/saudademjj/drizzle-migration-guard/blob/main/SUPPORT.md
+    about: Check the support policy to choose the right path for bugs, features, usage questions, and security concerns.
   - name: Security policy
     url: https://github.com/saudademjj/drizzle-migration-guard/blob/main/SECURITY.md
     about: Review the private reporting guidance for suspected vulnerabilities before opening a public issue.

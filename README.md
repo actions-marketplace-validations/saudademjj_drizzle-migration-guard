@@ -143,6 +143,7 @@ npm test
 ```
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution workflow, validation expectations, and PR guidance, and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards.
+For support paths and maintainer expectations, see [SUPPORT.md](./SUPPORT.md) and [MAINTAINERS.md](./MAINTAINERS.md).
 
 ## 中文说明
 
