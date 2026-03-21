@@ -14,10 +14,12 @@ const target: ConfigTarget = {
   configPath: "/tmp/repo/drizzle.config.ts",
   configPathRelative: "drizzle.config.ts",
   configDirectory: "/tmp/repo",
+  configDirectoryRelative: "",
   migrationDirectory: "/tmp/repo/drizzle",
   migrationDirectoryRelative: "drizzle",
   schemaPatterns: ["src/db/schema.ts"],
   relevantPatterns: ["drizzle.config.ts", "drizzle/**", "src/db/schema.ts"],
+  needsDynamicResolution: false,
 };
 
 function result(overrides: Partial<GuardResult>): GuardResult {

@@ -43,6 +43,13 @@ test("getPullRequestChangedFiles returns null on GitHub API errors", async () =>
   githubCjs.getOctokit = originalGetOctokit;
 });
 
+test("getPullRequestChangedFiles returns null without pull request context", async () => {
+  await withGithubContext({}, "owner/repo", async () => {
+    const result = await getPullRequestChangedFiles("token");
+    assert.equal(result, null);
+  });
+});
+
 test("syncStickyComment does not throw on API errors", async () => {
   const originalGetOctokit = githubCjs.getOctokit;
   githubCjs.getOctokit = () => ({
@@ -67,6 +74,75 @@ test("syncStickyComment does not throw on API errors", async () => {
     });
   });
 
+  githubCjs.getOctokit = originalGetOctokit;
+});
+
+test("syncStickyComment updates an existing sticky comment", async () => {
+  const originalGetOctokit = githubCjs.getOctokit;
+  let updatedCommentId: number | null = null;
+
+  githubCjs.getOctokit = () => ({
+    paginate: async () => [
+      { id: 42, body: "before marker after" },
+      { id: 99, body: "other comment" },
+    ],
+    rest: {
+      issues: {
+        listComments: () => ({}),
+        updateComment: async ({ comment_id }: { comment_id: number }) => {
+          updatedCommentId = comment_id;
+          return {};
+        },
+        createComment: async () => {
+          throw new Error("should not create");
+        },
+      },
+    },
+  });
+
+  await withGithubContext({ pull_request: { number: 456 } }, "owner/repo", async () => {
+    await syncStickyComment({
+      githubToken: "token",
+      body: "updated",
+      marker: "marker",
+      allowCreate: true,
+    });
+  });
+
+  assert.equal(updatedCommentId, 42);
+  githubCjs.getOctokit = originalGetOctokit;
+});
+
+test("syncStickyComment creates a sticky comment when allowed", async () => {
+  const originalGetOctokit = githubCjs.getOctokit;
+  let created = false;
+
+  githubCjs.getOctokit = () => ({
+    paginate: async () => [],
+    rest: {
+      issues: {
+        listComments: () => ({}),
+        updateComment: async () => {
+          throw new Error("should not update");
+        },
+        createComment: async () => {
+          created = true;
+          return {};
+        },
+      },
+    },
+  });
+
+  await withGithubContext({ pull_request: { number: 456 } }, "owner/repo", async () => {
+    await syncStickyComment({
+      githubToken: "token",
+      body: "created",
+      marker: "marker",
+      allowCreate: true,
+    });
+  });
+
+  assert.equal(created, true);
   githubCjs.getOctokit = originalGetOctokit;
 });
 

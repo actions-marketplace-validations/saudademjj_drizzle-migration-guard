@@ -3,7 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { runDrizzleCheck } from "./checker.js";
-import { discoverConfigTargets, findMatchedFiles } from "./discovery.js";
+import { discoverConfigTargets, findMatchedFiles, hydrateConfigTarget } from "./discovery.js";
 import { getPullRequestChangedFiles, hasPullRequestContext, syncStickyComment } from "./github.js";
 import { assertWorkingDirectory, parseCommentMode, parseFailOnMode, parseTimeoutSeconds } from "./inputs.js";
 import { parseCheckExecution } from "./parser.js";
@@ -16,7 +16,7 @@ import {
   renderReportMarkdown,
   writeMarkdownReport,
 } from "./reporters.js";
-import type { GuardInputs, GuardResult } from "./types.js";
+import type { ConfigTarget, GuardInputs, GuardResult } from "./types.js";
 
 function resolveInputs(): GuardInputs {
   const workspaceRoot = path.resolve(process.env.GITHUB_WORKSPACE ?? process.cwd());
@@ -141,6 +141,31 @@ function publishAnnotations(results: GuardResult[]): void {
   }
 }
 
+function shouldAttemptDynamicResolution(target: ConfigTarget, changedFiles: string[]): boolean {
+  const scopePrefix = target.configDirectoryRelative
+    ? `${target.configDirectoryRelative.toLowerCase()}/`
+    : null;
+
+  return changedFiles.some((file) => {
+    const normalized = file.toLowerCase();
+    const basename = path.posix.basename(normalized);
+
+    if (scopePrefix && normalized.startsWith(scopePrefix)) {
+      return true;
+    }
+
+    return (
+      normalized.endsWith(".sql") ||
+      normalized.includes("/drizzle/") ||
+      normalized.includes("/migration") ||
+      normalized.includes("/schema") ||
+      normalized.includes("/db/") ||
+      basename.startsWith("drizzle.config.") ||
+      basename.includes("schema")
+    );
+  });
+}
+
 async function run(): Promise<void> {
   const inputs = resolveInputs();
   assertWorkingDirectory(inputs.workspaceRoot, inputs.workingDirectory);
@@ -192,8 +217,20 @@ async function run(): Promise<void> {
 
   const results: GuardResult[] = [];
 
-  for (const target of targets) {
-    const matchedFiles = changedFiles ? findMatchedFiles(target, changedFiles) : [];
+  for (const initialTarget of targets) {
+    let target = initialTarget;
+    let matchedFiles = changedFiles ? findMatchedFiles(target, changedFiles) : [];
+
+    if (
+      changedFiles !== null &&
+      matchedFiles.length === 0 &&
+      target.needsDynamicResolution &&
+      shouldAttemptDynamicResolution(target, changedFiles)
+    ) {
+      target = await hydrateConfigTarget(target, inputs.workspaceRoot);
+      matchedFiles = findMatchedFiles(target, changedFiles);
+    }
+
     const shouldSkip = changedFiles !== null && matchedFiles.length === 0;
 
     if (shouldSkip) {

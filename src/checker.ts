@@ -29,7 +29,7 @@ export async function runDrizzleCheck(
 
   let exitCode = -1;
   try {
-    exitCode = await exec.exec(binary, args, {
+    const execOptions: Parameters<typeof exec.exec>[2] & { timeout?: number } = {
       cwd: workingDirectory,
       ignoreReturnCode: true,
       silent: true,
@@ -47,7 +47,8 @@ export async function runDrizzleCheck(
           stderr += chunk.toString();
         },
       },
-    });
+    };
+    exitCode = await exec.exec(binary, args, execOptions);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     timedOut =

@@ -18,10 +18,12 @@ export interface ConfigTarget {
   configPath: string;
   configPathRelative: string;
   configDirectory: string;
+  configDirectoryRelative: string;
   migrationDirectory: string;
   migrationDirectoryRelative: string;
   schemaPatterns: string[];
   relevantPatterns: string[];
+  needsDynamicResolution: boolean;
 }
 
 export interface CheckExecution {
