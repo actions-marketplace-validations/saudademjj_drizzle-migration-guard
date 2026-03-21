@@ -1,13 +1,32 @@
-# drizzle-migration-guard
+<p align="center">
+  <img src="./docs/logo.svg" alt="drizzle-migration-guard logo" width="96" height="96" />
+</p>
 
-![drizzle-migration-guard logo](./docs/logo.svg)
+<h1 align="center">drizzle-migration-guard</h1>
 
-[![GitHub Release](https://img.shields.io/github/v/release/saudademjj/drizzle-migration-guard?display_name=tag)](https://github.com/saudademjj/drizzle-migration-guard/releases)
-[![Action version](https://img.shields.io/badge/action-v1-0ea5e9)](https://github.com/saudademjj/drizzle-migration-guard/releases)
+<p align="center">
+  Explain Drizzle migration collisions in pull requests.
+</p>
 
-A GitHub Action that explains Drizzle migration collisions in pull requests.
+<p align="center">
+  <a href="https://github.com/saudademjj/drizzle-migration-guard/releases">
+    <img src="https://img.shields.io/github/v/release/saudademjj/drizzle-migration-guard?display_name=tag" alt="GitHub Release" />
+  </a>
+  <a href="https://github.com/saudademjj/drizzle-migration-guard/releases">
+    <img src="https://img.shields.io/badge/action-v1-0ea5e9" alt="Action version" />
+  </a>
+</p>
 
-![drizzle-migration-guard hero](./docs/hero.svg)
+<p align="center">
+  <img src="./docs/hero.svg" alt="drizzle-migration-guard hero" width="1100" />
+</p>
+
+<p align="center">
+  <a href="./CONTRIBUTING.md">Contributing</a> ·
+  <a href="./SUPPORT.md">Support</a> ·
+  <a href="./SECURITY.md">Security</a> ·
+  <a href="./MAINTAINERS.md">Maintainers</a>
+</p>
 
 `drizzle-migration-guard` wraps `drizzle-kit check`, turns raw failures into a short diagnosis, and leaves a sticky PR comment with concrete next steps when your migration history collides.
 

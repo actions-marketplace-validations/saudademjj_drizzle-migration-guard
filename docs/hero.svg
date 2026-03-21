@@ -1,31 +1,81 @@
-<svg width="1200" height="640" viewBox="0 0 1200 640" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1200" height="640" rx="32" fill="#020617"/>
-  <rect x="36" y="36" width="1128" height="568" rx="24" fill="#0F172A" stroke="#1E293B" stroke-width="2"/>
-  <text x="72" y="104" fill="#F8FAFC" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="40" font-weight="700">drizzle-migration-guard</text>
-  <text x="72" y="144" fill="#94A3B8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="22">PR feedback for Drizzle migration collisions</text>
+<svg width="1200" height="700" viewBox="0 0 1200 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="94" y1="36" x2="1110" y2="664" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="cardGlow" x1="84" y1="230" x2="1116" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#18253D"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
 
-  <rect x="72" y="188" width="328" height="340" rx="20" fill="#111827" stroke="#334155"/>
-  <text x="96" y="226" fill="#F8FAFC" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="600">1. PR check turns red</text>
-  <rect x="96" y="252" width="280" height="64" rx="14" fill="#3F1D1D"/>
-  <circle cx="128" cy="284" r="10" fill="#F87171"/>
-  <text x="150" y="292" fill="#FDE68A" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">collision/history</text>
-  <text x="96" y="354" fill="#E2E8F0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">[0005_snapshot.json, 0006_snapshot.json]</text>
-  <text x="96" y="386" fill="#E2E8F0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">point to the same parent snapshot.</text>
+  <rect width="1200" height="700" rx="32" fill="#020617"/>
+  <rect x="28" y="36" width="1144" height="628" rx="28" fill="url(#bg)" stroke="#1E293B" stroke-width="2"/>
 
-  <rect x="436" y="188" width="328" height="340" rx="20" fill="#111827" stroke="#334155"/>
-  <text x="460" y="226" fill="#F8FAFC" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="600">2. Sticky PR comment explains it</text>
-  <rect x="460" y="252" width="280" height="212" rx="14" fill="#0B1220" stroke="#1E293B"/>
-  <text x="484" y="292" fill="#38BDF8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">How to fix</text>
-  <text x="484" y="334" fill="#E2E8F0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">- pull latest main</text>
-  <text x="484" y="364" fill="#E2E8F0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">- regenerate migration</text>
-  <text x="484" y="394" fill="#E2E8F0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">- push and re-run CI</text>
+  <circle cx="94" cy="86" r="8" fill="#38BDF8"/>
+  <circle cx="122" cy="86" r="8" fill="#22C55E"/>
+  <circle cx="150" cy="86" r="8" fill="#F59E0B"/>
 
-  <rect x="800" y="188" width="328" height="340" rx="20" fill="#111827" stroke="#334155"/>
-  <text x="824" y="226" fill="#F8FAFC" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="600">3. Re-check goes green</text>
-  <rect x="824" y="252" width="280" height="64" rx="14" fill="#123524"/>
-  <circle cx="856" cy="284" r="10" fill="#4ADE80"/>
-  <text x="878" y="292" fill="#DCFCE7" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">Migration history is consistent</text>
-  <text x="824" y="356" fill="#E2E8F0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">No drift guessing. No digging through logs.</text>
-  <text x="824" y="388" fill="#E2E8F0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">Just a clear fix recipe in the PR.</text>
+  <text x="84" y="146" fill="#F8FAFC" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="46" font-weight="700">
+    drizzle-migration-guard
+  </text>
+  <text x="84" y="186" fill="#94A3B8" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="24">
+    Turn raw drizzle-kit collisions into review-ready pull request feedback.
+  </text>
+
+  <rect x="84" y="230" width="1032" height="370" rx="28" fill="url(#cardGlow)" stroke="#1E293B"/>
+
+  <rect x="84" y="230" width="324" height="370" rx="24" fill="#111827" stroke="#334155"/>
+  <text x="112" y="280" fill="#F8FAFC" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="26" font-weight="700">
+    <tspan x="112" dy="0">1. PR check flags</tspan>
+    <tspan x="112" dy="34">a collision</tspan>
+  </text>
+  <rect x="112" y="336" width="268" height="78" rx="16" fill="#3A1722" stroke="#7F1D1D"/>
+  <circle cx="144" cy="375" r="10" fill="#FB7185"/>
+  <text x="168" y="381" fill="#FFE4E6" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="18" font-weight="600">
+    collision/history
+  </text>
+  <text x="112" y="466" fill="#CBD5E1" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="18">
+    <tspan x="112" dy="0">Snapshots 0005 and 0006</tspan>
+    <tspan x="112" dy="30">point at the same parent.</tspan>
+    <tspan x="112" dy="30">The failure is short, visible,</tspan>
+    <tspan x="112" dy="30">and easy to classify.</tspan>
+  </text>
+
+  <rect x="438" y="230" width="324" height="370" rx="24" fill="#111827" stroke="#334155"/>
+  <text x="466" y="280" fill="#F8FAFC" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="26" font-weight="700">
+    <tspan x="466" dy="0">2. Sticky comment</tspan>
+    <tspan x="466" dy="34">explains the fix</tspan>
+  </text>
+  <rect x="466" y="336" width="268" height="156" rx="16" fill="#0B1220" stroke="#1E293B"/>
+  <text x="490" y="374" fill="#38BDF8" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="18" font-weight="700">
+    How to fix
+  </text>
+  <text x="490" y="412" fill="#E2E8F0" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="17">
+    <tspan x="490" dy="0">• pull the latest main</tspan>
+    <tspan x="490" dy="28">• regenerate the migration</tspan>
+    <tspan x="490" dy="28">• push and let CI re-check</tspan>
+  </text>
+  <text x="466" y="536" fill="#CBD5E1" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="18">
+    <tspan x="466" dy="0">Reviewers get a next step,</tspan>
+    <tspan x="466" dy="30">not just a failing log.</tspan>
+  </text>
+
+  <rect x="792" y="230" width="324" height="370" rx="24" fill="#111827" stroke="#334155"/>
+  <text x="820" y="280" fill="#F8FAFC" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="26" font-weight="700">
+    <tspan x="820" dy="0">3. Re-check passes</tspan>
+    <tspan x="820" dy="34">with a clean summary</tspan>
+  </text>
+  <rect x="820" y="336" width="268" height="92" rx="16" fill="#0F2F1C" stroke="#166534"/>
+  <circle cx="852" cy="382" r="10" fill="#4ADE80"/>
+  <text x="876" y="378" fill="#DCFCE7" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="17" font-weight="600">
+    <tspan x="876" dy="0">Migration history</tspan>
+    <tspan x="876" dy="24">is consistent</tspan>
+  </text>
+  <text x="820" y="476" fill="#CBD5E1" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="18">
+    <tspan x="820" dy="0">No log spelunking.</tspan>
+    <tspan x="820" dy="30">No guesswork around drift.</tspan>
+    <tspan x="820" dy="30">Just clear feedback in the PR.</tspan>
+  </text>
 </svg>
-
