@@ -28,7 +28,15 @@ export async function getPullRequestChangedFiles(githubToken: string): Promise<s
       per_page: 100,
     });
 
-    return normalizeFileList(files.map((file) => file.filename));
+    return normalizeFileList(
+      files.flatMap((file) => {
+        const paths = [file.filename];
+        if (typeof file.previous_filename === "string" && file.previous_filename) {
+          paths.push(file.previous_filename);
+        }
+        return paths;
+      }),
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     core.warning(`Failed to load PR files from GitHub: ${message}`);

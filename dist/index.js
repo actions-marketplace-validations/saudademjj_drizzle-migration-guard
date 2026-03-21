@@ -61242,6 +61242,25 @@ var ALWAYS_RELEVANT_PATTERNS = [
   "bun.lockb",
   "bun.lock"
 ];
+function buildManifestPatterns(configDirectory, workspaceRoot) {
+  const patterns = [];
+  const root = import_node_path3.default.resolve(workspaceRoot);
+  let current = import_node_path3.default.resolve(configDirectory);
+  while (true) {
+    for (const filename of ALWAYS_RELEVANT_PATTERNS) {
+      patterns.push(workspaceRelative(import_node_path3.default.join(current, filename), workspaceRoot));
+    }
+    if (current === root) {
+      break;
+    }
+    const parent = import_node_path3.default.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+  return unique(patterns);
+}
 async function fileExists(filePath) {
   try {
     await (0, import_promises.access)(filePath);
@@ -61373,11 +61392,12 @@ function buildConfigTarget(options) {
   const schemaPatterns = options.schemaPatternsRaw.map(
     (pattern) => normalizePatternToWorkspace(pattern, options.configDirectory, options.workspaceRoot)
   );
+  const manifestPatterns = buildManifestPatterns(options.configDirectory, options.workspaceRoot);
   const relevantPatterns = unique([
     configPathRelative,
     `${migrationDirectoryRelative}/**`,
     ...schemaPatterns,
-    ...ALWAYS_RELEVANT_PATTERNS
+    ...manifestPatterns
   ]);
   return {
     configPath: options.configPath,
@@ -61447,11 +61467,12 @@ async function hydrateConfigTarget(target, workspaceRoot, options = {}) {
     const schemaPatterns = schemaFromConfig.length > 0 ? schemaFromConfig.map(
       (pattern) => normalizePatternToWorkspace(pattern, target.configDirectory, workspaceRoot)
     ) : target.schemaPatterns;
+    const manifestPatterns = buildManifestPatterns(target.configDirectory, workspaceRoot);
     const relevantPatterns = unique([
       target.configPathRelative,
       `${migrationDirectoryRelative}/**`,
       ...schemaPatterns,
-      ...ALWAYS_RELEVANT_PATTERNS
+      ...manifestPatterns
     ]);
     return {
       ...target,
@@ -61550,7 +61571,15 @@ async function getPullRequestChangedFiles(githubToken) {
       pull_number: pullRequestNumber,
       per_page: 100
     });
-    return normalizeFileList(files.map((file) => file.filename));
+    return normalizeFileList(
+      files.flatMap((file) => {
+        const paths = [file.filename];
+        if (typeof file.previous_filename === "string" && file.previous_filename) {
+          paths.push(file.previous_filename);
+        }
+        return paths;
+      })
+    );
   } catch (error2) {
     const message = error2 instanceof Error ? error2.message : String(error2);
     core2.warning(`Failed to load PR files from GitHub: ${message}`);

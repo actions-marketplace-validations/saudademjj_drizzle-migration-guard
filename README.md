@@ -2,8 +2,8 @@
 
 ![drizzle-migration-guard logo](./docs/logo.svg)
 
-[![CI](https://github.com/saudademjj/drizzle-migration-guard/actions/workflows/drizzle-migration-guard-ci.yml/badge.svg)](https://github.com/saudademjj/drizzle-migration-guard/actions/workflows/drizzle-migration-guard-ci.yml)
-[![Action version](https://img.shields.io/badge/action-v1-0ea5e9)](https://github.com/saudademjj/drizzle-migration-guard)
+[![GitHub Release](https://img.shields.io/github/v/release/saudademjj/drizzle-migration-guard?display_name=tag)](https://github.com/saudademjj/drizzle-migration-guard/releases)
+[![Action version](https://img.shields.io/badge/action-v1-0ea5e9)](https://github.com/saudademjj/drizzle-migration-guard/releases)
 
 A GitHub Action that explains Drizzle migration collisions in pull requests.
 
@@ -22,6 +22,8 @@ Drizzle already ships `drizzle-kit check`, but the default output still makes re
 - Blocks the PR only for `collision/history` by default.
 
 ## Quick start
+
+Use the latest major tag in workflows so you automatically receive compatible patch updates.
 
 ```yaml
 name: drizzle-migration-guard
@@ -48,9 +50,44 @@ jobs:
 
       - run: npm ci
 
-      - uses: saudademjj/drizzle-migration-guard@main
+      - uses: saudademjj/drizzle-migration-guard@v1
         with:
           github-token: ${{ github.token }}
+```
+
+## Monorepo example
+
+Use `working-directory` to choose which package should run `drizzle-kit check`, and use `config` when the config file is not the default `drizzle.config.*` in that directory.
+
+```yaml
+name: drizzle-migration-guard-monorepo
+
+on:
+  pull_request:
+    paths:
+      - "packages/api/**"
+      - "package.json"
+      - "package-lock.json"
+      - "pnpm-lock.yaml"
+
+jobs:
+  guard-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - uses: saudademjj/drizzle-migration-guard@v1
+        with:
+          github-token: ${{ github.token }}
+          working-directory: packages/api
+          config: drizzle.config.ts
 ```
 
 ## Inputs
@@ -78,14 +115,34 @@ jobs:
 - Multi-config support is explicit by design. Pass config paths through the `config` input.
 - The action expects `drizzle-kit` to be available in the checked-out project. It calls `npx --no-install drizzle-kit check`.
 - Non-blocking failures still appear in the step summary and comment, but only `collision/history` fails the job by default.
+- Package-local `package.json` and common lockfiles are treated as relevant PR changes, so monorepo packages do not get skipped when dependencies move.
+- Renamed PR files are matched against both the current path and the previous path reported by GitHub.
+
+## Troubleshooting
+
+### The action says it was skipped
+
+This usually means the PR did not touch the config file, schema files, migration directory, or package manifest paths tracked for that config. In monorepos, double-check that `working-directory` points at the package that owns the Drizzle config.
+
+### `drizzle-kit` could not be found
+
+Install `drizzle-kit` before the action runs, usually with `npm ci`, `pnpm install --frozen-lockfile`, or your team's equivalent. The action calls `npx --no-install drizzle-kit check`, so it expects the dependency to already exist in CI.
+
+### The action checks every config on pull requests
+
+That happens when `github-token` is missing. Without it, the action cannot read the PR file list from GitHub, so it falls back to checking every discovered config.
 
 ## Local development
+
+This repository intentionally omits committed GitHub workflow files because GitHub Marketplace requires published action repositories to stay workflow-free.
 
 ```bash
 npm install
 npm run build
 npm test
 ```
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution workflow, validation expectations, and PR guidance.
 
 ## 中文说明
 

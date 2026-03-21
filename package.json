@@ -1,6 +1,6 @@
 {
   "name": "drizzle-migration-guard",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A GitHub Action that explains Drizzle migration collisions in pull requests.",
   "private": false,
   "main": "dist/index.js",

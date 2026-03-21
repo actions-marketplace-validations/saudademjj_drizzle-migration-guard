@@ -165,3 +165,31 @@ test("getPullRequestChangedFiles handles large PR file lists", async () => {
 
   githubCjs.getOctokit = originalGetOctokit;
 });
+
+test("getPullRequestChangedFiles includes renamed file paths", async () => {
+  const originalGetOctokit = githubCjs.getOctokit;
+
+  githubCjs.getOctokit = () => ({
+    paginate: async () => [
+      {
+        filename: "docs/renamed.sql",
+        previous_filename: "drizzle/0001_initial.sql",
+      },
+      {
+        filename: "src/db/schema.ts",
+      },
+    ],
+    rest: { pulls: { listFiles: () => ({}) } },
+  });
+
+  await withGithubContext({ pull_request: { number: 321 } }, "owner/repo", async () => {
+    const result = await getPullRequestChangedFiles("token");
+    assert.deepEqual(result, [
+      "docs/renamed.sql",
+      "drizzle/0001_initial.sql",
+      "src/db/schema.ts",
+    ]);
+  });
+
+  githubCjs.getOctokit = originalGetOctokit;
+});

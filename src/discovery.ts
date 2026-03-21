@@ -32,6 +32,30 @@ const ALWAYS_RELEVANT_PATTERNS = [
   "bun.lock",
 ];
 
+function buildManifestPatterns(configDirectory: string, workspaceRoot: string): string[] {
+  const patterns: string[] = [];
+  const root = path.resolve(workspaceRoot);
+  let current = path.resolve(configDirectory);
+
+  while (true) {
+    for (const filename of ALWAYS_RELEVANT_PATTERNS) {
+      patterns.push(workspaceRelative(path.join(current, filename), workspaceRoot));
+    }
+
+    if (current === root) {
+      break;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+
+  return unique(patterns);
+}
+
 async function fileExists(filePath: string): Promise<boolean> {
   try {
     await access(filePath);
@@ -217,11 +241,12 @@ function buildConfigTarget(options: {
   const schemaPatterns = options.schemaPatternsRaw.map((pattern) =>
     normalizePatternToWorkspace(pattern, options.configDirectory, options.workspaceRoot),
   );
+  const manifestPatterns = buildManifestPatterns(options.configDirectory, options.workspaceRoot);
   const relevantPatterns = unique([
     configPathRelative,
     `${migrationDirectoryRelative}/**`,
     ...schemaPatterns,
-    ...ALWAYS_RELEVANT_PATTERNS,
+    ...manifestPatterns,
   ]);
 
   return {
@@ -312,11 +337,12 @@ export async function hydrateConfigTarget(
             normalizePatternToWorkspace(pattern, target.configDirectory, workspaceRoot),
           )
         : target.schemaPatterns;
+    const manifestPatterns = buildManifestPatterns(target.configDirectory, workspaceRoot);
     const relevantPatterns = unique([
       target.configPathRelative,
       `${migrationDirectoryRelative}/**`,
       ...schemaPatterns,
-      ...ALWAYS_RELEVANT_PATTERNS,
+      ...manifestPatterns,
     ]);
 
     return {

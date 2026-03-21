@@ -55,6 +55,110 @@ async function createFixtureProject(prefix: string): Promise<{
   };
 }
 
+async function createMonorepoFixtureProject(prefix: string): Promise<{
+  repoRoot: string;
+  tempRoot: string;
+  relativeWorkingDirectory: string;
+  summaryPath: string;
+  outputPath: string;
+  eventPath: string;
+}> {
+  const root = repoRoot();
+  const fixturesDirectory = path.join(root, "tests", "fixtures", "valid");
+  const tempRoot = await mkdtemp(path.join(root, prefix));
+  const packageRoot = path.join(tempRoot, "packages", "api");
+  const summaryPath = path.join(tempRoot, "summary.md");
+  const outputPath = path.join(tempRoot, "output.txt");
+  const eventPath = path.join(tempRoot, "event.json");
+
+  await cp(fixturesDirectory, packageRoot, { recursive: true });
+  await writeFile(
+    path.join(packageRoot, "drizzle.config.ts"),
+    [
+      "export default {",
+      "  schema: './src/db/schema.ts',",
+      "  out: './drizzle',",
+      "  dialect: 'postgresql',",
+      "};",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  await writeFile(path.join(packageRoot, "package.json"), JSON.stringify({ name: "api", private: true }, null, 2), "utf8");
+  await writeFile(eventPath, JSON.stringify({ pull_request: { number: 123 } }, null, 2), "utf8");
+  await writeFile(summaryPath, "", "utf8");
+  await writeFile(outputPath, "", "utf8");
+
+  return {
+    repoRoot: root,
+    tempRoot,
+    relativeWorkingDirectory: path.relative(root, packageRoot),
+    summaryPath,
+    outputPath,
+    eventPath,
+  };
+}
+
+async function createGithubPreload(
+  tempRoot: string,
+  files: Array<{ filename: string; previous_filename?: string }>,
+): Promise<string> {
+  const preloadPath = path.join(tempRoot, "mock-github.mjs");
+  await writeFile(
+    preloadPath,
+    [
+      "import { createRequire } from 'node:module';",
+      "const require = createRequire(import.meta.url);",
+      "const github = require('@actions/github');",
+      `const files = ${JSON.stringify(files)};`,
+      "github.getOctokit = () => ({",
+      "  paginate: async () => files,",
+      "  rest: { pulls: { listFiles: () => ({}) } },",
+      "});",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  return preloadPath;
+}
+
+async function runAction(options: {
+  repoRoot: string;
+  env: NodeJS.ProcessEnv;
+  imports?: string[];
+}): ReturnType<typeof execFileAsync> {
+  const args = [...(options.imports ?? []).flatMap((entry) => ["--import", entry]), "--import", "tsx", "src/index.ts"];
+  return execFileAsync(process.execPath, args, {
+    cwd: options.repoRoot,
+    env: options.env,
+  });
+}
+
+function readOutputValue(raw: string, name: string): string | null {
+  const lines = raw.split(/\r?\n/);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line.startsWith(`${name}=`)) {
+      return line.slice(name.length + 1);
+    }
+
+    if (line.startsWith(`${name}<<`)) {
+      const delimiter = line.slice(name.length + 2);
+      const values: string[] = [];
+      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+        if (lines[cursor] === delimiter) {
+          return values.join("\n");
+        }
+        values.push(lines[cursor]);
+      }
+    }
+  }
+
+  return null;
+}
+
 test("index flow succeeds with explicit config input", async () => {
   const { repoRoot: root, tempRoot, relativeWorkingDirectory, summaryPath, outputPath, eventPath } =
     await createFixtureProject(".tmp-drizzle-migration-guard-e2e-");
@@ -70,8 +174,8 @@ test("index flow succeeds with explicit config input", async () => {
     env["INPUT_WORKING-DIRECTORY"] = relativeWorkingDirectory;
     env["INPUT_FAIL-ON"] = "";
 
-    const result = await execFileAsync(process.execPath, ["--import", "tsx", "src/index.ts"], {
-      cwd: root,
+    const result = await runAction({
+      repoRoot: root,
       env,
     });
 
@@ -102,8 +206,8 @@ test("index flow fails and reports collisions when fail-on blocks", async () => 
     env["INPUT_FAIL-ON"] = "collision";
 
     await assert.rejects(
-      execFileAsync(process.execPath, ["--import", "tsx", "src/index.ts"], {
-        cwd: root,
+      runAction({
+        repoRoot: root,
         env,
       }),
       (error: unknown) => {
@@ -116,6 +220,82 @@ test("index flow fails and reports collisions when fail-on blocks", async () => 
         return true;
       },
     );
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("index flow does not skip monorepo package manifests when PR files are filtered", async () => {
+  const { repoRoot: root, tempRoot, relativeWorkingDirectory, summaryPath, outputPath, eventPath } =
+    await createMonorepoFixtureProject(".tmp-drizzle-migration-guard-e2e-manifest-");
+
+  try {
+    const preloadPath = await createGithubPreload(tempRoot, [
+      { filename: path.relative(root, path.join(tempRoot, "packages", "api", "package.json")) },
+    ]);
+    const env = {
+      ...process.env,
+      GITHUB_WORKSPACE: root,
+      GITHUB_REPOSITORY: "owner/repo",
+      GITHUB_EVENT_PATH: eventPath,
+      GITHUB_STEP_SUMMARY: summaryPath,
+      GITHUB_OUTPUT: outputPath,
+      INPUT_CONFIG: "drizzle.config.ts",
+    };
+    env["INPUT_GITHUB-TOKEN"] = "token";
+    env["INPUT_WORKING-DIRECTORY"] = relativeWorkingDirectory;
+    env["INPUT_COMMENT-MODE"] = "off";
+
+    const result = await runAction({
+      repoRoot: root,
+      env,
+      imports: [preloadPath],
+    });
+
+    const outputs = await readFile(outputPath, "utf8");
+    assert.match(result.stdout, /Migration history is consistent/);
+    assert.equal(readOutputValue(outputs, "status"), "success");
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("index flow runs when a renamed PR file was previously in a relevant Drizzle path", async () => {
+  const { repoRoot: root, tempRoot, relativeWorkingDirectory, summaryPath, outputPath, eventPath } =
+    await createFixtureProject(".tmp-drizzle-migration-guard-e2e-rename-");
+
+  try {
+    const preloadPath = await createGithubPreload(tempRoot, [
+      {
+        filename: path.relative(root, path.join(tempRoot, "docs", "renamed.sql")),
+        previous_filename: path.relative(
+          root,
+          path.join(tempRoot, "drizzle", "0001_colossal_jackpot.sql"),
+        ),
+      },
+    ]);
+    const env = {
+      ...process.env,
+      GITHUB_WORKSPACE: root,
+      GITHUB_REPOSITORY: "owner/repo",
+      GITHUB_EVENT_PATH: eventPath,
+      GITHUB_STEP_SUMMARY: summaryPath,
+      GITHUB_OUTPUT: outputPath,
+      INPUT_CONFIG: "drizzle.config.ts",
+    };
+    env["INPUT_GITHUB-TOKEN"] = "token";
+    env["INPUT_WORKING-DIRECTORY"] = relativeWorkingDirectory;
+    env["INPUT_COMMENT-MODE"] = "off";
+
+    const result = await runAction({
+      repoRoot: root,
+      env,
+      imports: [preloadPath],
+    });
+
+    const outputs = await readFile(outputPath, "utf8");
+    assert.match(result.stdout, /Migration history is consistent/);
+    assert.equal(readOutputValue(outputs, "status"), "success");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

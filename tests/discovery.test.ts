@@ -73,6 +73,44 @@ test("matches changed files against config, schema, and migration patterns", asy
   assert.deepEqual(matches, ["src/db/schema.ts", "drizzle/0003_add_indexes.sql"]);
 });
 
+test("treats package-local manifests as relevant changes for monorepo configs", async () => {
+  const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "drizzle-migration-guard-manifest-"));
+  const packageRoot = path.join(workspaceRoot, "packages", "api");
+  await mkdir(path.join(packageRoot, "src", "db"), { recursive: true });
+
+  await writeFile(
+    path.join(packageRoot, "drizzle.config.ts"),
+    [
+      "export default {",
+      "  schema: './src/db/schema.ts',",
+      "  out: './drizzle',",
+      "  dialect: 'postgresql',",
+      "};",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  const [target] = await discoverConfigTargets({
+    workspaceRoot,
+    workingDirectory: packageRoot,
+    configInput: "",
+  });
+
+  const matches = findMatchedFiles(target, [
+    "packages/api/package.json",
+    "packages/api/package-lock.json",
+    "packages/api/pnpm-lock.yaml",
+    "packages/web/package.json",
+  ]);
+
+  assert.deepEqual(matches, [
+    "packages/api/package.json",
+    "packages/api/package-lock.json",
+    "packages/api/pnpm-lock.yaml",
+  ]);
+});
+
 test("loads dynamic config exports and ignores commented schema", async () => {
   const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "drizzle-migration-guard-dynamic-"));
   const packageRoot = path.join(workspaceRoot, "packages", "api");
