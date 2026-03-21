@@ -142,7 +142,7 @@ npm run build
 npm test
 ```
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution workflow, validation expectations, and PR guidance.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution workflow, validation expectations, and PR guidance, and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards.
 
 ## 中文说明
 
